@@ -11,6 +11,8 @@ services:
       FLASK_APP: app.py
       FLASK_RUN_HOST: 0.0.0.0
       SQLALCHEMY_DATABASE_URI: postgresql://user:password@db:5432/stock_tracker
+      GOOGLE_CLIENT_ID: "your-client-id.apps.googleusercontent.com"
+      GOOGLE_CLIENT_SECRET: "your-client-secret"
   db:
     image: postgres:15
     environment:

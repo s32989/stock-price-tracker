@@ -1,12 +1,31 @@
 import psycopg2
-from flask import Flask
+import os
+from flask import Flask, redirect, url_for, session
+from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://user:password@db:5432/stock_tracker'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+
+oauth = OAuth(app)
+google = oauth.register(
+    name="google",
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
+    access_token_url="https://oauth2.googleapis.com/token",
+    authorize_url="https://accounts.google.com/o/oauth2/auth",
+    api_base_url="https://www.googleapis.com/oauth2/v1/",
+    client_kwargs={"scope": "openid email profile"},
+)
+
+
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -47,15 +66,34 @@ def get_db_connection():
     )
     return conn
 
-@app.route('/')
+
+@app.route("/")
 def home():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('SELECT version();')
-    version = cur.fetchone()
-    cur.close()
-    conn.close()
-    return f"Connected to PostgreSQL: {version[0]}"
+    return "Welcome to the OAuth Demo! <a href='/login'>Login with Google</a>"
+
+
+@app.route("/login")
+def login():
+    return google.authorize_redirect(url_for("callback", _external=True))
+
+
+@app.route("/login/callback")
+def callback():
+    token = google.authorize_access_token()
+    user_info = google.get("userinfo").json()
+
+    # Store user info in session
+    session["user"] = user_info
+
+    return redirect(url_for("profile"))
+
+
+@app.route("/profile")
+def profile():
+    user = session.get("user")
+    if not user:
+        return redirect(url_for("login"))
+    return f"Hello, {user['name']}! Your email is {user['email']}."
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
