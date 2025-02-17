@@ -7,6 +7,10 @@ services:
       - "5000:5000"
     depends_on:
       - db
+    environment:
+      FLASK_APP: app.py
+      FLASK_RUN_HOST: 0.0.0.0
+      SQLALCHEMY_DATABASE_URI: postgresql://user:password@db:5432/stock_tracker
   db:
     image: postgres:15
     environment:
