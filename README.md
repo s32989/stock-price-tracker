@@ -8,7 +8,7 @@ Python 3.9+ installed (only needed for running locally)
 If setting up for the first time:
 
 Clone the repository:
-`git clone <repo_url>
+`git clone https://github.com/s32989/stock-price-tracker
 cd stock-price-tracker
 `
 
