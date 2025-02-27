@@ -12,6 +12,11 @@ Clone the repository:
 cd stock-price-tracker
 `
 
+Will need to set up the .env file:
+(1) Generate a Flask Secret Key:
+(2) ...more to follow
+
+
 Build and start the application:
 `docker-compose up --build`
 

@@ -1,6 +1,8 @@
 version: "3.9"
 services:
   app:
+    env_file:
+      - .env
     build:
       context: .
     ports:
@@ -10,14 +12,11 @@ services:
     environment:
       FLASK_APP: app.py
       FLASK_RUN_HOST: 0.0.0.0
-      SQLALCHEMY_DATABASE_URI: postgresql://user:password@db:5432/stock_tracker
-      GOOGLE_CLIENT_ID: "your-client-id.apps.googleusercontent.com"
-      GOOGLE_CLIENT_SECRET: "your-client-secret"
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+      
   db:
+    env_file:
+      - .env
     image: postgres:15
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: stock_tracker
     ports:
       - "5432:5432"

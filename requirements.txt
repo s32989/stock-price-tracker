@@ -4,3 +4,4 @@ Flask-Migrate~=4.1.0
 alembic~=1.14.1
 authlib
 requests
+dotenv
