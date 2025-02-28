@@ -1,7 +1,8 @@
 import psycopg2
 import os
 import logging
-from flask import Flask, redirect, url_for, session, redirect, url_for, jsonify
+import requests
+from flask import Flask, session, redirect, url_for, jsonify
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -13,11 +14,13 @@ load_dotenv()
 app = Flask(__name__)
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
+
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 DATABASE_URL = os.getenv("DATABASE_URL")
 POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
 
 logging.basicConfig(level=logging.DEBUG)
 app.logger.setLevel(logging.DEBUG)
@@ -26,6 +29,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 oauth = OAuth(app)
+
 google = oauth.register(
     name="google",
     client_id=os.getenv("GOOGLE_CLIENT_ID"),
@@ -40,7 +44,7 @@ google = oauth.register(
     jwks_uri="https://www.googleapis.com/oauth2/v3/certs"
 )
 
-
+# Database Initialize
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
@@ -134,6 +138,7 @@ def callback():
 
 
 @app.route("/profile")
+@login_required
 def profile():
 
     print("Session Data:", session)  # Debugging
@@ -144,6 +149,30 @@ def profile():
 
     user = User.query.get(user_id)
     return jsonify({"message": f"Hello, {user.name}!", "email": user.email})
+
+@app.route("/stock/<symbol>", methods=["GET"])
+@login_required
+def get_stock_price(symbol):
+    url = f"https://www.alphavantage.co/query"
+    params = {
+        "function": "GLOBAL_QUOTE",
+        "symbol": symbol.upper(),
+        "apikey": ALPHA_VANTAGE_API_KEY
+    }
+
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    if "Global Quote" in data:
+        stock_data = {
+            "symbol": data["Global Quote"]["01. symbol"],
+            "price": data["Global Quote"]["05. price"],
+            "change": data["Global Quote"]["09. change"],
+            "last_updated": data["Global Quote"]["07. latest trading day"]
+        }
+        return jsonify(stock_data)
+    else:
+        return jsonify({"error": "Stock not found"}), 404
 
 
 if __name__ == '__main__':
