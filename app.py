@@ -92,10 +92,10 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
 @app.route("/")
 def home():
     return "Welcome to the OAuth Demo! <a href='/login'>Login with Google</a>"
-
 
 @app.route("/login")
 def login():
@@ -106,14 +106,11 @@ def logout():
     session.clear()
     return redirect(url_for("home"))
 
-
 @app.route("/login/callback")
 def callback():
-
     token = google.authorize_access_token()
     user_info = google.get("userinfo").json()
 
-    # Check if user exists in DB
     existing_user = User.query.filter_by(oauth_id=user_info["id"]).first()
 
     if not existing_user:
@@ -125,34 +122,47 @@ def callback():
         )
         db.session.add(new_user)
         db.session.commit()
-        session["user_id"] = new_user.id
-        app.logger.info(f"New user created: {new_user.id}")
+        session["user_id"] = new_user.id  # Store user ID in session
     else:
-        session["user_id"] = existing_user.id
-        app.logger.info(f"Existing user logged in: {existing_user.id}")
+        session["user_id"] = existing_user.id  # Store existing user ID
 
-    app.logger.info(f"Session Data: {session}")
+    print(f"Stored user in session:", session["user_id"])  # Debugging
 
     return redirect(url_for("profile"))
 
+@app.route("/debug-session")
+def debug_session():
+    return jsonify({"session": dict(session)})
 
 
 @app.route("/profile")
 @login_required
 def profile():
-
-    print("Session Data:", session)  # Debugging
-
+    app.logger.info(session)  # Debugging
     user_id = session.get("user_id")
+
     if not user_id:
+        app.logger.info("User ID is missing from session!")  # Debugging
         return jsonify({"error": "Unauthorized access"}), 401
 
     user = User.query.get(user_id)
+
+    if not user:
+        app.logger.info(f"User not found for ID: {user_id}")  # Debugging
+        return jsonify({"error": "User not found"}), 404
+
     return jsonify({"message": f"Hello, {user.name}!", "email": user.email})
 
 @app.route("/stock/<symbol>", methods=["GET"])
 @login_required
 def get_stock_price(symbol):
+
+    user_id = session.get("user_id")
+    print(user_id)
+
+    if not user_id:
+        return jsonify({"error": "Unauthorized access"}), 401
+
     url = f"https://www.alphavantage.co/query"
     params = {
         "function": "GLOBAL_QUOTE",
