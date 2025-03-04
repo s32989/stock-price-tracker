@@ -9,6 +9,8 @@ services:
       - "5000:5000"
     depends_on:
       - db
+    entrypoint: >
+      sh -c "flask db upgrade && python app.py"
     environment:
       FLASK_APP: app.py
       FLASK_RUN_HOST: 0.0.0.0
