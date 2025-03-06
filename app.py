@@ -9,6 +9,8 @@ from flask_migrate import Migrate
 from functools import wraps
 from dotenv import load_dotenv
 import datetime
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 load_dotenv()
 
@@ -46,6 +48,12 @@ google = oauth.register(
         "prompt": "select_account"
     },
     jwks_uri="https://www.googleapis.com/oauth2/v3/certs"
+)
+# Initialize Limiter
+limiter = Limiter(
+    get_remote_address,  # Uses client IP for rate limiting
+    app=app,
+    default_limits=["10 per minute"],  # Adjust as needed
 )
 
 # Database Initialize
@@ -142,23 +150,21 @@ def debug_session():
 @app.route("/profile")
 @login_required
 def profile():
-    app.logger.info(session)  # Debugging
     user_id = session.get("user_id")
 
     if not user_id:
-        app.logger.info("User ID is missing from session!")  # Debugging
         return jsonify({"error": "Unauthorized access"}), 401
 
     user = User.query.get(user_id)
 
     if not user:
-        app.logger.info(f"User not found for ID: {user_id}")  # Debugging
         return jsonify({"error": "User not found"}), 404
 
     return jsonify({"message": f"Hello, {user.name}!", "email": user.email})
 
 @app.route("/stock/<symbol>", methods=["GET"])
 @login_required
+@limiter.limit("5 per minute")
 def get_stock_price(symbol):
 
     user_id = session.get("user_id")
