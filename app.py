@@ -2,12 +2,13 @@ import psycopg2
 import os
 import logging
 import requests
-from flask import Flask, session, redirect, url_for, jsonify
+from flask import Flask, session, redirect, url_for, jsonify, request
 from authlib.integrations.flask_client import OAuth
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from functools import wraps
 from dotenv import load_dotenv
+import datetime
 
 load_dotenv()
 
@@ -27,6 +28,9 @@ app.logger.setLevel(logging.DEBUG)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 oauth = OAuth(app)
 
@@ -184,6 +188,31 @@ def get_stock_price(symbol):
     else:
         return jsonify({"error": "Stock not found"}), 404
 
+
+@app.route("/track-stock", methods=["POST"])
+@login_required
+def track_stock():
+
+    data = request.get_json()
+    ticker = data.get("ticker")
+
+    if not ticker:
+        return jsonify({"error": "Stock ticker is required"}), 400
+
+    # Get user ID from session
+    user_id = session.get("user_id")
+
+    # Check if stock is already being tracked
+    existing_entry = TrackedStock.query.filter_by(user_id=user_id, ticker=ticker.upper()).first()
+    if existing_entry:
+        return jsonify({"message": "Stock is already being tracked"}), 409
+
+    # Add stock to tracked list
+    new_tracked_stock = TrackedStock(user_id=user_id, ticker=ticker.upper(), added_at=datetime.datetime.utcnow())
+    db.session.add(new_tracked_stock)
+    db.session.commit()
+
+    return jsonify({"message": f"Tracking {ticker.upper()} successfully!"}), 201
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
